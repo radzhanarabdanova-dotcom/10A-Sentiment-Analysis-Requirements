@@ -1,0 +1,68 @@
+---
+title: "Data607.Sentiment Analysis: Pride and Prejudice Extension"
+author: "Radzhana Rabdanova"
+date: "2026-04-16"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytext)
+library(janeaustenr)
+library(stringr)
+library(textdata)
+
+### Step 1: Reproduce the Base Example
+
+#In Chapter 2 of "Text Mining with R", the authors analyze sentiment trends throughout books. We will start by replicating the basic workflow using the "Bing" lexicon.
+
+#Source: Silge & Robinson, Text Mining with R
+
+# Prepare the text data for Pride and Prejudice
+tidy_books <- austen_books() %>%
+  filter(book == "Pride & Prejudice") %>%
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", ignore_case = TRUE)))) %>%
+  unnest_tokens(word, text)
+
+# Use the Bing lexicon to calculate sentiment
+pride_prejudice_sentiment <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+# Plot the base analysis
+ggplot(pride_prejudice_sentiment, aes(index, sentiment)) +
+     geom_col(fill = "steelblue", show.legend = FALSE) +
+     labs(title = "Sentiment through Pride & Prejudice (Bing Lexicon)",
+          x = "Trajectory", y = "Sentiment Score")
+
+### Step 2: Extension of the Analysis
+
+#For the extension, I will use a different sentiment lexicon: Loughran-McDonald. This lexicon was originally developed for financial documents but is excellent for identifying specific emotional tones like "litigious", "uncertainty", or "constraining".
+
+# Get the Loughran-McDonald lexicon
+loughran <- get_sentiments("loughran")
+
+# Analyze Pride and Prejudice using Loughran-McDonald
+loughran_analysis <- tidy_books %>%
+  inner_join(loughran) %>%
+  count(word, sentiment, sort = TRUE)
+
+# Compare how different emotional categories appear in the text
+ggplot(loughran_analysis %>% filter(n > 5), aes(reorder(sentiment, n), n)) +
+  geom_col(fill = "darkred") +
+  coord_flip() +
+  labs(title = "Loughran-McDonald Categories in Pride & Prejudice",
+       x = "Emotion Category", y = "Word Count")
+
+### Analysis of Differences
+#The original example from the book uses the Bing lexicon, which provides a simple binary classification (positive vs. negative). This is useful for seeing the general "mood" of a chapter.
+
+#In contrast, the Loughran-McDonald lexicon (used in the extension) reveals more nuanced categories. Even in a 19th-century novel, it identified high levels of "uncertainty" and "litigious" language, which likely reflects the complex social negotiations and marriage contracts discussed in the plot. While Bing shows if a scene is happy, Loughran-McDonald helps explain the nature of the tension.
+
+```
+
